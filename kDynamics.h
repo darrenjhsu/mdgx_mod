@@ -252,10 +252,27 @@
         // Velocity Verlet half kick with coordinates update.
         // Zero forces when done.
         if (threadIdx.x < natom) {
-          float hmdt = cGms.DVCatomHDTM[atomStart + threadIdx.x];          
+          float hmdt = cGms.DVCatomHDTM[atomStart + threadIdx.x];
+          if (stepidx == 0) {
+            if (threadIdx.x == 34) {
+              printf("My idx is %d, and my hmdt is %f\n", threadIdx.x, hmdt);
+              printf("my coord is %.3f %.3f %.3f\n",
+                xcrd[threadIdx.x], ycrd[threadIdx.x], zcrd[threadIdx.x]);
+
+            }
+          }
           if (cGms.Tstat.active == 1) {
-            float atmmass = cGms.hdtm2mass / hmdt;
+            // Added by DH 053021, disable atom movement if its hmdt = 0
+            //if (hmdt == 0.0) {
+            //  float atmmass = 0.0;
+            //} else {
+              float atmmass = cGms.hdtm2mass / hmdt;
+            //}
             float rsd = FPSCALEfrc * sysSdfac * sqrt(atmmass);
+            if (hmdt == 0.0) {
+              rsd = 0.0;
+            }
+
             int rndidx = randStart +
                          3*(((stepidx * cGms.slowFrcMult) + i) %
                             cGms.Tstat.refresh)*natom +
@@ -1503,8 +1520,19 @@
           float hmdt = __ldg(&cGms.DVCatomHDTM[atomStart + threadIdx.x]);
 #endif
           if (cGms.Tstat.active == 1) {
+            // Added by DH 053021, disable atom movement if its hmdt = 0
+            //if (hmdt == 0.0) {
+            //  float atmmass = 0.0;
+            //} else {
             float atmmass = cGms.hdtm2mass / hmdt;
+            
+            //}
             float rsd = FPSCALEfrc * sysSdfac * sqrt(atmmass);
+            if (hmdt == 0.0) {
+              rsd = 0.0;
+            }
+
+
             int rndidx = randStart +
                          3*((((stepidx * cGms.slowFrcMult) + i) %
                              cGms.Tstat.refresh) + 1)*natom +
@@ -1649,8 +1677,12 @@
               ukine *= (float)1.0 + ((float)0.5 * cGms.Tstat.gamma_ln *
                                      cGms.dt);
             }
-            ukine *= ((float)0.25 * sqrt((float)418.4) * cGms.dt /
-                      FPSCALEfrc) / hmdt;
+            if (hmdt == 0) {
+              ukine = 0.0;
+            } else {
+              ukine *= ((float)0.25 * sqrt((float)418.4) * cGms.dt /
+                        FPSCALEfrc) / hmdt;
+            }
           }
           else {
             ukine = (float)0.0;

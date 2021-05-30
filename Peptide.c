@@ -713,8 +713,19 @@ static void InitGmsTopologies(pepcon *ppctrl, prmtop* tpbank, gpuMultiSim *gms)
     for (j = 0; j < tpbank[i].natom; j++) {
       gms->atomQ.HostData[atomcount]      = sqrt(BIOQ) * tpbank[i].Charges[j];
       gms->atomMass.HostData[atomcount]   = tpbank[i].Masses[j];
-      gms->atomHDTM.HostData[atomcount]   = 0.5 * gms->dt * sqrt(418.4) /
-                                            (FPSCALEfrc * tpbank[i].Masses[j]);
+      // Added by DH 053021, set atoms with masses 9999 as "fixed"
+      if (tpbank[i].Masses[j] > 1000.0) {
+        printf("InitGmsTopologies >> Detected really heavy atom! It has a mass of %.3f \n", 
+                tpbank[i].Masses[j]);
+      }
+      fflush(stdout);
+      if (tpbank[i].Masses[j] == 9999.0) {
+        gms->atomHDTM.HostData[atomcount]   = 0.0; 
+        printf("InitGmsTopologies >> Set HDTM of this atom %d to 0! \n", j);
+      } else {
+        gms->atomHDTM.HostData[atomcount]   = 0.5 * gms->dt * sqrt(418.4) /
+                                              (FPSCALEfrc * tpbank[i].Masses[j]);
+      }
       gms->atomLJID.HostData[atomcount]   = abs(tpbank[i].LJIdx[j]);
       atomcount++;
     }
