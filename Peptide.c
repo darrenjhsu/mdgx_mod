@@ -675,6 +675,11 @@ static void InitGmsTopologies(pepcon *ppctrl, prmtop* tpbank, gpuMultiSim *gms)
   char tlet[16];
   dmat* nbexcl;
 
+  // DH Add a "fixed atom DOF" array
+  int* faDOF;
+  faDOF = (int*)malloc(ppctrl->nsys * sizeof(int));
+
+
   // Load Lennard-Jones interaction matrices
   // and all atoms' non-bonded descriptors
   nbcon = 0;
@@ -687,6 +692,7 @@ static void InitGmsTopologies(pepcon *ppctrl, prmtop* tpbank, gpuMultiSim *gms)
     gms->atomReadLimits.HostData[i].x = atomcount;
     gms->atomReadLimits.HostData[i].y = atomcount + tpbank[i].natom;
     atomcount += ((tpbank[i].natom + 31) / 32) * 32;
+    faDOF[i] = 0; // DH for fixed atom DOF
   }
   nbcon *= nbcon;
   gms->ljABoffset = nbcon;
@@ -722,6 +728,7 @@ static void InitGmsTopologies(pepcon *ppctrl, prmtop* tpbank, gpuMultiSim *gms)
       if (tpbank[i].Masses[j] == 9999.0) {
         gms->atomHDTM.HostData[atomcount]   = 0.0; 
         printf("InitGmsTopologies >> Set HDTM of this atom %d to 0! \n", j);
+        faDOF[i] += 3; // DH: Added fixed atom DOF
       } else {
         gms->atomHDTM.HostData[atomcount]   = 0.5 * gms->dt * sqrt(418.4) /
                                               (FPSCALEfrc * tpbank[i].Masses[j]);
@@ -735,7 +742,14 @@ static void InitGmsTopologies(pepcon *ppctrl, prmtop* tpbank, gpuMultiSim *gms)
   // Log the number of system degrees of freedom in a convenient product
   gms->invNDF = CreateGpuDouble(ppctrl->nsys, 1);
   for (i = 0; i < ppctrl->nsys; i++) {
-    gms->invNDF.HostData[i] = 1.0 / ((double)tpbank[i].ndf * GASCNST);
+    // DH: account for fixed atom DOF
+    if (faDOF == 0) {
+      gms->invNDF.HostData[i] = 1.0 / ((double)tpbank[i].ndf * GASCNST);
+    } else {
+      gms->invNDF.HostData[i] = 1.0 / (((double)tpbank[i].ndf - (double)faDOF[i]) * GASCNST);
+      printf("InitGmsTopologies >> System number of DOF is changed from %d to %d " 
+             "due to fixed atoms.\n", tpbank[i].ndf, tpbank[i].ndf - faDOF[i]); 
+    }
   }
   
   // Construct full non-bonded interaction matrices

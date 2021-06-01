@@ -253,14 +253,14 @@
         // Zero forces when done.
         if (threadIdx.x < natom) {
           float hmdt = cGms.DVCatomHDTM[atomStart + threadIdx.x];
-          if (stepidx == 0) {
+          /*if (stepidx == 0) {
             if (threadIdx.x == 34) {
               printf("My idx is %d, and my hmdt is %f\n", threadIdx.x, hmdt);
               printf("my coord is %.3f %.3f %.3f\n",
                 xcrd[threadIdx.x], ycrd[threadIdx.x], zcrd[threadIdx.x]);
 
             }
-          }
+          }*/
           if (cGms.Tstat.active == 1) {
             // Added by DH 053021, disable atom movement if its hmdt = 0
             //if (hmdt == 0.0) {
@@ -1677,8 +1677,8 @@
               ukine *= (float)1.0 + ((float)0.5 * cGms.Tstat.gamma_ln *
                                      cGms.dt);
             }
-            if (hmdt == 0) {
-              ukine = 0.0;
+            if (hmdt == 0.0) {
+              ukine = (float)0.0;
             } else {
               ukine *= ((float)0.25 * sqrt((float)418.4) * cGms.dt /
                         FPSCALEfrc) / hmdt;
